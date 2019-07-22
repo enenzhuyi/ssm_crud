@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+
+
+	<!-- 配置自动扫描 -->
+	<context:component-scan base-package="com.hrious.crud" use-default-filters="true">
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+	</context:component-scan>
+	
+
+	<!-- 数据源的配置 -->
+	<!-- 引入外部数据源配置文件 -->
+	<context:property-placeholder location="classpath:dbconfig.properties"/>
+	<bean class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		id="dataSource">
+		<property name="jdbcUrl" value="${jdbc.jdbcUrl}"></property>
+		<property name="driverClass" value="${jdbc.driverClass}"></property>
+		<property name="user" value="${jdbc.user}"></property>
+		<property name="password" value="${jdbc.password}"></property>
+	</bean>
+	
+	<!-- 配置 mybatis -->
+	<bean class="org.mybatis.spring.SqlSessionFactoryBean"
+		id="sqlSessionFactory">
+		<!-- 设定 mybatis 全局配置文件路径 -->
+		<property name="configLocation" value="classpath:mybatis-config.xml"></property>
+		<!-- 配置数据源 -->
+		<property name="dataSource" ref="dataSource"></property>
+		<!-- 设置 mapper 文件路径 -->
+		<property name="mapperLocations" value="classpath:mapper/*.xml"></property>
+	</bean>
+	
+	<!-- Spring 整合mybatis, 将 mapper 接口的实现类加入到 IOC 容器中 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.hrious.crud.dao"></property>
+	</bean>
+	
+	<!-- 配置一个批量操作的 SqlSession -->
+	<bean class="org.mybatis.spring.SqlSessionTemplate"
+		id="sqlSession">
+		<constructor-arg name="sqlSessionFactory" ref="sqlSessionFactory"></constructor-arg>
+		<constructor-arg name="executorType" value="BATCH"></constructor-arg>
+	</bean>
+	
+	<!-- 事务相关配置 -->
+	<!-- 配置事务管理器 -->
+	<bean class="org.springframework.jdbc.datasource.DataSourceTransactionManager"
+		id="transactionManager">
+		<!-- 配置数据源 -->
+		<property name="dataSource" ref="dataSource"></property>
+	</bean>
+	
+	<!-- 配置基于注解的事务或者是基于 xml 的事务, 必要的都是采用 xml 的方式 -->
+	<aop:config>
+		<!-- 配置事务切入点 -->
+		<aop:pointcut expression="execution(* com.hrious.crud.service..*(..))" id="txPoint"/>
+		<!-- 配置事务增强 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPoint"/>
+	</aop:config>
+	
+	<!-- 配置事务增强, 事务如何切入 -->
+	<tx:advice transaction-manager="transactionManager" id="txAdvice">
+		<tx:attributes>
+			<tx:method name="*"/>
+			<tx:method name="get*" read-only="true"/>
+		</tx:attributes>
+	</tx:advice>
+
+</beans>
